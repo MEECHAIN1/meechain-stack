@@ -1,11 +1,42 @@
-<div align="center">
+# MeeChain Magic Hall
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+Interactive React + Vite front-end for the MeeChain Magic Layer.
 
-  <h1>Built with AI Studio</h2>
+## What is included
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+- 7 Hall navigation + MeeBot console
+- Live polling for `/health`, `/api/magic/orb`, `/api/magic/realm-vision`
+- Address-bound views for `/api/magic/hall/:address`, achievements, quests, quest log
+- Vercel rewrites + Netlify redirects for proxying the Replit API
+- Style language preserved from current MeeChain UI: dark grid, aura glow, orbital hero, ritual cards
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Local run
 
-</div>
+```bash
+npm install
+npm run dev
+```
+
+## Production build
+
+```bash
+npm run build
+```
+
+## Deploy
+
+### Vercel
+The included `vercel.json` rewrites `/api/*` and `/health` to:
+
+`https://ritual-chain--pouaun2499.replit.app`
+
+### Netlify
+The included `netlify.toml` does the same proxy mapping.
+
+## Optional env override
+
+If you want to bypass proxy rules and call another backend, set:
+
+```bash
+VITE_API_BASE_URL=https://your-api-domain.com
+```
