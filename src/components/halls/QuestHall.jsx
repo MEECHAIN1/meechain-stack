@@ -58,6 +58,272 @@ export default function QuestHall({ quests, onQuestConfirm, magicAddress, onNavi
   const [coinsClaimed, setCoinsClaimed] = useState([]);
   const [copiedAddress, setCopiedAddress] = useState(null);
 
+  // Launch Ritual state variables (with standard localStorage persistence)
+  const [launchProgress, setLaunchProgress] = useState(() => {
+    const saved = localStorage.getItem('meechain-launch-progress');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { }
+    }
+    return {
+      step1: 'pending', // 'pending' | 'completed'
+      step2: 'pending',
+      step3: 'pending',
+      step4: 'pending',
+      step5: 'pending',
+      step6: 'pending'
+    };
+  });
+
+  const [buildLogs, setBuildLogs] = useState([]);
+  const [isBuilding, setIsBuilding] = useState(false);
+  
+  const [tokenAddress, setTokenAddress] = useState('0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9');
+  const [questContractAddress, setQuestContractAddress] = useState('0x68B1D87F95878fE05B998F19b66F4baba5De1aed');
+  const [isVerifyingContracts, setIsVerifyingContracts] = useState(false);
+  const [verificationOutput, setVerificationOutput] = useState('');
+
+  const [e2eLogs, setE2eLogs] = useState([]);
+  const [isTesting, setIsTesting] = useState(false);
+
+  const [prometheusStatus, setPrometheusStatus] = useState('Offline');
+  const [grafanaAlerts, setGrafanaAlerts] = useState('Inactive');
+  const [alertmanagerFailover, setAlertmanagerFailover] = useState(false);
+
+  const [vercelProjectId, setVercelProjectId] = useState('prj_XNRGrqVMuVl9wA0VCFu0TeIoQ3m8');
+  const [customDomain, setCustomDomain] = useState('explorer.meechain.link');
+  const [isDeployingVercel, setIsDeployingVercel] = useState(false);
+  const [deployLogs, setDeployLogs] = useState([]);
+
+  const [airdropAmount, setAirdropAmount] = useState('1,000,000');
+  const [isAirdropping, setIsAirdropping] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem('meechain-launch-progress', JSON.stringify(launchProgress));
+  }, [launchProgress]);
+
+  const awardRitualXp = (amount, sourceName) => {
+    let newXp = xp + amount;
+    let currentLevel = level;
+    let nextMaxXp = maxXp;
+    let triggeredLevelUp = false;
+
+    while (newXp >= nextMaxXp) {
+      newXp -= nextMaxXp;
+      currentLevel += 1;
+      nextMaxXp = currentLevel * 1000;
+      triggeredLevelUp = true;
+    }
+
+    setLevel(currentLevel);
+    setXp(newXp);
+    setMaxXp(nextMaxXp);
+
+    // Save to localStorage
+    const saved = localStorage.getItem(stateKey);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        localStorage.setItem(stateKey, JSON.stringify({
+          ...parsed,
+          level: currentLevel,
+          xp: newXp,
+          maxXp: nextMaxXp
+        }));
+      } catch (e) {}
+    }
+
+    if (triggeredLevelUp) {
+      const oldTitle = getTitleForLevel(level);
+      const newTitle = getTitleForLevel(currentLevel);
+      setLevelUpOverlay({
+        oldLevel: level,
+        newLevel: currentLevel,
+        oldTitle,
+        newTitle
+      });
+      playLevelUp(currentLevel);
+      
+      const levelUpEvent = new CustomEvent('LevelUp', { 
+        detail: { level: currentLevel, xp: newXp, maxXp: nextMaxXp, title: newTitle } 
+      });
+      window.dispatchEvent(levelUpEvent);
+    }
+
+    setTerminalLogs(prev => [
+      ...prev,
+      { text: `🔮 [Ritual Ledger] Received ${amount} XP from '${sourceName}'`, type: 'success' }
+    ]);
+  };
+
+  const runDashboardBuild = () => {
+    if (isBuilding) return;
+    setIsBuilding(true);
+    setBuildLogs(['[vite] pre-bundling dependencies...', '[vite] building for production...']);
+    
+    const logSeq = [
+      { time: 500, text: '✓ transform: index.html (12ms)' },
+      { time: 1000, text: '✓ transform: src/main.tsx (30ms)' },
+      { time: 1500, text: '✓ transform: src/App.tsx (80ms)' },
+      { time: 2000, text: '✓ transform: src/components/halls/QuestHall.jsx (120ms)' },
+      { time: 2500, text: '✓ render: assets/index-meechain-glow.css (210kB)' },
+      { time: 3000, text: '✓ render: assets/index-meechain-bundle.js (790kB)' },
+      { time: 3400, text: '✓ Built successfully! dist/ directory generated.' },
+      { time: 3800, text: '⚡ Local dev-server active at http://localhost:3000 (MeeChain Gradient Theme Purple-Blue-Sky initialized)' }
+    ];
+
+    logSeq.forEach(({ time, text }) => {
+      setTimeout(() => {
+        setBuildLogs(prev => [...prev, text]);
+        if (time === 3800) {
+          setIsBuilding(false);
+          setLaunchProgress(prev => ({ ...prev, step1: 'completed' }));
+          awardRitualXp(150, 'Deploy React Dashboard Ritual');
+        }
+      }, time);
+    });
+  };
+
+  const verifyContractIntegration = () => {
+    if (isVerifyingContracts) return;
+    setIsVerifyingContracts(true);
+    setVerificationOutput('Connecting to RPC node https://rpc.meechain.live ...\n');
+    
+    setTimeout(() => {
+      setVerificationOutput(prev => prev + `Querying MEEToken at ${tokenAddress} ...\n`);
+    }, 600);
+
+    setTimeout(() => {
+      setVerificationOutput(prev => prev + `✓ Balance query success: Total Supply = 10,000,000 MEE\n`);
+    }, 1200);
+
+    setTimeout(() => {
+      setVerificationOutput(prev => prev + `Querying QuestSystem at ${questContractAddress} ...\n`);
+    }, 1800);
+
+    setTimeout(() => {
+      setVerificationOutput(prev => prev + `✓ Active quest registries loaded (3 system quests, 5 player badges recognized)\n`);
+    }, 2400);
+
+    setTimeout(() => {
+      setVerificationOutput(prev => prev + `⚡ Contract interface integration VERIFIED!\n`);
+      setIsVerifyingContracts(false);
+      setLaunchProgress(prev => ({ ...prev, step2: 'completed' }));
+      awardRitualXp(200, 'Integrate Contract Addresses Ritual');
+    }, 3000);
+  };
+
+  const executeE2eSuite = () => {
+    if (isTesting) return;
+    setIsTesting(true);
+    setE2eLogs(['[Playwright] Launching Chromium browser context...', '[Playwright] Loading explorer.meechain.link mockup...']);
+
+    const testSeq = [
+      { time: 600, text: '▶ Running Test Suite 1: Login & Authentication Flow' },
+      { time: 1100, text: '  ✓ Enter credentials & sign magical signature (120ms)' },
+      { time: 1600, text: '▶ Running Test Suite 2: Daily Quest Engine Verification' },
+      { time: 2100, text: '  ✓ Pick "Ancient Puzzle" -> increment progress -> status set to complete (350ms)' },
+      { time: 2600, text: '  ✓ Claim bounty -> treasure chest coin bounce -> on-chain balance increased (490ms)' },
+      { time: 3100, text: '▶ Running Test Suite 3: Token Minting & Transaction Ledger' },
+      { time: 3600, text: '  ✓ Mint token via ERC20 contract -> event log index check (170ms)' },
+      { time: 4100, text: '▶ Running Test Suite 4: Block Explorer Indexing Rate' },
+      { time: 4600, text: '  ✓ Indexer sync check (latency: 72ms, RPC Response: 200 OK)' },
+      { time: 5100, text: '🎉 ALL 4 TEST SUITES PASSED SECURELY! 100% SUCCESS RATE' }
+    ];
+
+    testSeq.forEach(({ time, text }) => {
+      setTimeout(() => {
+        setE2eLogs(prev => [...prev, text]);
+        if (time === 5100) {
+          setIsTesting(false);
+          setLaunchProgress(prev => ({ ...prev, step3: 'completed' }));
+          awardRitualXp(250, 'E2E Validation Ritual');
+        }
+      }, time);
+    });
+  };
+
+  const initializeMonitoringStack = () => {
+    setPrometheusStatus('Online 🟢');
+    setGrafanaAlerts('Active (TPS < 100 or Latency > 300ms) 🟢');
+    setAlertmanagerFailover(true);
+    setLaunchProgress(prev => ({ ...prev, step4: 'completed' }));
+    awardRitualXp(200, 'Setup Monitoring Stack Ritual');
+  };
+
+  const deployLiveToProduction = () => {
+    if (isDeployingVercel) return;
+    setIsDeployingVercel(true);
+    setDeployLogs(['Deploying project on Vercel...', `Project ID: ${vercelProjectId}`, `Custom Domain Target: ${customDomain}`]);
+
+    const deploySeq = [
+      { time: 800, text: '⚡ Provisioning Cloud Server Node on Vercel Edge Networks...' },
+      { time: 1600, text: '📦 Uploading compiled dashboard assets (Vite production bundle)...' },
+      { time: 2400, text: '🔒 Attaching SSL Certificates for custom domain explorer.meechain.link...' },
+      { time: 3200, text: '🌐 Registering mainnet MeeChain RPC gateway routers...' },
+      { time: 4000, text: '🚀 DEPLOYMENT COMPLETED! APP LIVE AT https://explorer.meechain.link' }
+    ];
+
+    deploySeq.forEach(({ time, text }) => {
+      setTimeout(() => {
+        setDeployLogs(prev => [...prev, text]);
+        if (time === 4000) {
+          setIsDeployingVercel(false);
+          setLaunchProgress(prev => ({ ...prev, step5: 'completed' }));
+          awardRitualXp(500, 'Mainnet Production Launch Ritual');
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+        }
+      }, time);
+    });
+  };
+
+  const triggerGenesisCelebration = () => {
+    if (isAirdropping) return;
+    setIsAirdropping(true);
+    
+    const coins = Array.from({ length: 25 }).map((_, i) => ({
+      id: i,
+      left: Math.random() * 80 + 10,
+      top: Math.random() * 60 + 20,
+      delay: Math.random() * 0.5
+    }));
+    setCoinsClaimed(coins);
+
+    setTimeout(() => {
+      setIsAirdropping(false);
+      setLaunchProgress(prev => ({ ...prev, step6: 'completed' }));
+      
+      awardRitualXp(1000, 'MeeChain Genesis Community Ritual');
+      
+      confetti({
+        particleCount: 200,
+        spread: 120,
+        origin: { y: 0.5 }
+      });
+    }, 1800);
+  };
+
+  const resetLaunchRitual = () => {
+    setLaunchProgress({
+      step1: 'pending',
+      step2: 'pending',
+      step3: 'pending',
+      step4: 'pending',
+      step5: 'pending',
+      step6: 'pending'
+    });
+    setBuildLogs([]);
+    setVerificationOutput('');
+    setE2eLogs([]);
+    setPrometheusStatus('Offline');
+    setGrafanaAlerts('Inactive');
+    setAlertmanagerFailover(false);
+    setDeployLogs([]);
+  };
+
   // Sandbox/Playground State variables
   const [contractAddress, setContractAddress] = useState('0x68B1D87F95878fE05B998F19b66F4baba5De1aed');
   const [questName, setQuestName] = useState('First Quest');
@@ -725,16 +991,20 @@ export default function QuestHall({ quests, onQuestConfirm, magicAddress, onNavi
               <Terminal className="w-3.5 h-3.5" />
               Sandbox Ritual
             </button>
+            <button 
+              onClick={() => setActiveTab('launch')}
+              className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${activeTab === 'launch' ? 'bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-500 text-white shadow-md' : 'text-white/60 hover:text-white hover:bg-white/5'}`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              Launch Ritual 🚀
+            </button>
           </div>
 
           <button 
-            onClick={() => {
-              navigator.clipboard.writeText(magicAddress || '0xMeeBuilderDemo');
-              alert('Copied Magic Address!');
-            }}
+            onClick={() => handleCopyAddress('magicAddress', magicAddress || '0xMeeBuilderDemo')}
             className="px-4 py-2 bg-gradient-to-r from-[#213a77] to-[#14234b] text-xs font-mono font-bold text-cyan-400 rounded-xl border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-[0_0_12px_rgba(61,217,255,0.1)]"
           >
-            {(magicAddress || '0xMeeBuilderDemo').slice(0, 6)}...{(magicAddress || '0xMeeBuilderDemo').slice(-4)} 🔗
+            {copiedAddress === 'magicAddress' ? 'Copied! ✓' : `${(magicAddress || '0xMeeBuilderDemo').slice(0, 6)}...${(magicAddress || '0xMeeBuilderDemo').slice(-4)} 🔗`}
           </button>
         </div>
       </div>
@@ -1284,7 +1554,7 @@ export default function QuestHall({ quests, onQuestConfirm, magicAddress, onNavi
 
           </div>
         </div>
-      ) : (
+      ) : activeTab === 'sandbox' ? (
         /* FOUNDRY TERMINAL SPELLBOOK & SANDBOX */
         <div className="grid gap-6">
           <div>
@@ -1521,6 +1791,454 @@ export default function QuestHall({ quests, onQuestConfirm, magicAddress, onNavi
               <span>EVM Node RPC Server: ACTIVE</span>
               <span>Supported Events: QuestCreated, QuestCompleted, LeaderboardUpdated, LevelUp</span>
             </div>
+          </div>
+        </div>
+      ) : (
+        /* RITUAL LAUNCH FLOW BOARD - HIGHLY VISIBLE CARDS & INTERACTIVE ITEMS */
+        <div className="space-y-8 animate-in fade-in duration-300 text-xs">
+          
+          {/* Main Title Banner & Interactive Candle Panel */}
+          <div className="relative text-center py-10 px-6 bg-slate-950/60 rounded-3xl border-2 border-indigo-500/20 shadow-[inset_0_4px_30px_rgba(124,133,255,0.06),0_15px_40px_rgba(0,0,0,0.8)] overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#7c85ff]/50 to-transparent"></div>
+            
+            <div className="max-w-2xl mx-auto">
+              <span className="text-[10px] text-[#7c85ff] tracking-widest uppercase font-black bg-[#7c85ff]/10 px-3 py-1 rounded-full border border-[#7c85ff]/20">
+                MeeChain Mainnet Genesis Launch Sequence
+              </span>
+              <h2 className="text-2xl md:text-3xl font-serif font-extrabold text-white tracking-wide mt-4 flex items-center justify-center gap-2.5">
+                🪄 Ritual Flow: MeeChain Production Launch
+              </h2>
+              <p className="text-xs text-white/60 mt-3 leading-relaxed">
+                Deploy the web dashboard, integrate smart ledgers, run full E2E audits, setup Prometheus/Grafana alerts, publish to Vercel, and celebrate with community air-drops!
+              </p>
+            </div>
+
+            {/* Overall launch checklist progress bar */}
+            <div className="mt-8 max-w-lg mx-auto bg-black/50 p-4 rounded-2xl border border-white/5 shadow-inner">
+              <div className="flex justify-between items-center mb-2 font-bold text-white/70">
+                <span>Ritual Milestone Completion</span>
+                <span className="text-[#f7c55f]">
+                  {Object.values(launchProgress).filter(status => status === 'completed').length} / 6 Complete
+                </span>
+              </div>
+              <div className="w-full h-3 bg-black/60 rounded-full overflow-hidden p-[1px] border border-white/10 relative">
+                <div 
+                  className="h-full bg-gradient-to-r from-purple-500 via-indigo-500 to-cyan-400 rounded-full transition-all duration-700 ease-out relative"
+                  style={{ width: `${(Object.values(launchProgress).filter(status => status === 'completed').length / 6) * 100}%` }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-sweep w-full h-full" style={{ animationDuration: '2s' }}></div>
+                </div>
+              </div>
+              <div className="flex justify-between items-center text-[10px] text-white/30 font-mono mt-2.5">
+                <span>Genesis: Block #0</span>
+                <button 
+                  onClick={resetLaunchRitual}
+                  className="text-white/40 hover:text-white underline transition-all font-sans font-bold"
+                >
+                  Reset Sequence Progress 🔄
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Grid of 6 Ritual Phase Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+
+            {/* Step 1: Deploy React Dashboard */}
+            <div className={`p-5 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[420px] ${launchProgress.step1 === 'completed' ? 'border-emerald-500/35 bg-gradient-to-b from-[#0b241e] to-[#040a16] shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'border-purple-500/30 bg-gradient-to-b from-[#14122d] to-[#040816] hover:border-purple-500/60 shadow-lg'}`}>
+              <div className="absolute right-2 bottom-2 text-7xl opacity-[0.03] pointer-events-none">💻</div>
+              <div>
+                <div className="flex justify-between items-start pb-3 border-b border-white/5 mb-4">
+                  <div>
+                    <span className="text-[10px] text-purple-400 font-mono font-bold uppercase tracking-wider">Phase 1 • Frontend</span>
+                    <h3 className="font-serif text-sm font-bold text-white mt-0.5">Deploy React Dashboard</h3>
+                  </div>
+                  {launchProgress.step1 === 'completed' ? (
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 font-black tracking-wider">🟢 Completed</span>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full border border-purple-500/30 font-black tracking-wider animate-pulse">⚪ Pending</span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-white/70 leading-relaxed mb-4">
+                  Construct and test local production compilations of the dApp dashboard containing the Token, Quest, and Monitoring Hall components.
+                </p>
+
+                {/* Sub-items block */}
+                <div className="space-y-1.5 p-3 bg-black/40 rounded-xl border border-white/5 text-[10px] mb-4">
+                  <div className="flex items-center gap-2 text-white/60">
+                    <Check className="w-3 h-3 text-purple-400 stroke-[3px]" />
+                    <span>Compile with Vite + Tailwind CSS</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/60">
+                    <Check className="w-3 h-3 text-purple-400 stroke-[3px]" />
+                    <span>MeeChain Gradient Theme (Purple-Blue-Sky)</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/60">
+                    <Check className="w-3 h-3 text-purple-400 stroke-[3px]" />
+                    <span>Assemble Token, Quest & Monitor Halls</span>
+                  </div>
+                </div>
+
+                {/* Interactive Theme visual & Log output */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex justify-between items-center text-[10px] text-white/40">
+                    <span>MeeChain Colors:</span>
+                    <div className="flex gap-1.5">
+                      <span className="w-3 h-3 rounded-full bg-[#8b5cf6]" title="Purple"></span>
+                      <span className="w-3 h-3 rounded-full bg-[#3b82f6]" title="Blue"></span>
+                      <span className="w-3 h-3 rounded-full bg-[#06b6d4]" title="Sky"></span>
+                    </div>
+                  </div>
+                  
+                  {buildLogs.length > 0 && (
+                    <div className="h-28 overflow-y-auto bg-black/80 border border-white/5 rounded-lg p-2 font-mono text-[9px] leading-relaxed text-cyan-400/90">
+                      {buildLogs.map((log, idx) => (
+                        <div key={idx} className="mb-0.5">{log}</div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <button
+                  onClick={runDashboardBuild}
+                  disabled={isBuilding}
+                  className={`w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${isBuilding ? 'bg-purple-900/40 text-purple-300 border border-purple-500/30 cursor-not-allowed' : launchProgress.step1 === 'completed' ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gradient-to-r from-purple-500 to-indigo-600 hover:scale-[1.01] active:scale-[0.99] text-white'}`}
+                >
+                  {isBuilding ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-purple-300 border-t-transparent rounded-full animate-spin"></span>
+                      Running Vite Compiler...
+                    </>
+                  ) : launchProgress.step1 === 'completed' ? (
+                    '✓ Recompile Frontend'
+                  ) : (
+                    'Initiate Production Build ⚡'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 2: Integrate Contract Addresses */}
+            <div className={`p-5 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[420px] ${launchProgress.step2 === 'completed' ? 'border-emerald-500/35 bg-gradient-to-b from-[#0b241e] to-[#040a16] shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'border-amber-500/30 bg-gradient-to-b from-[#1c1610] to-[#040816] hover:border-amber-500/60 shadow-lg'}`}>
+              <div className="absolute right-2 bottom-2 text-7xl opacity-[0.03] pointer-events-none">🛡️</div>
+              <div>
+                <div className="flex justify-between items-start pb-3 border-b border-white/5 mb-4">
+                  <div>
+                    <span className="text-[10px] text-amber-400 font-mono font-bold uppercase tracking-wider">Phase 2 • Solidity Bindings</span>
+                    <h3 className="font-serif text-sm font-bold text-white mt-0.5">Integrate Contract Addresses</h3>
+                  </div>
+                  {launchProgress.step2 === 'completed' ? (
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 font-black tracking-wider">🟢 Verified</span>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full border border-amber-500/30 font-black tracking-wider animate-pulse">⚪ Pending</span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-white/70 leading-relaxed mb-4">
+                  Establish live smart contract references using RPC node providers to map MEEToken balances and QuestSystem records directly to client states.
+                </p>
+
+                {/* Interactive Inputs */}
+                <div className="space-y-2.5 mb-4 text-[10px]">
+                  <div>
+                    <label className="block text-white/40 mb-1 font-bold">MEEToken.sol Address</label>
+                    <input 
+                      type="text" 
+                      value={tokenAddress} 
+                      onChange={(e) => setTokenAddress(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-black/60 border border-white/10 rounded-lg text-amber-400/90 font-mono text-[9px] outline-none focus:border-amber-500/50 transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-white/40 mb-1 font-bold">QuestSystem.sol Address</label>
+                    <input 
+                      type="text" 
+                      value={questContractAddress} 
+                      onChange={(e) => setQuestContractAddress(e.target.value)}
+                      className="w-full px-2.5 py-1.5 bg-black/60 border border-white/10 rounded-lg text-amber-400/90 font-mono text-[9px] outline-none focus:border-amber-500/50 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Live verification logs */}
+                {verificationOutput && (
+                  <pre className="p-2.5 bg-black/80 border border-white/5 rounded-xl font-mono text-[9px] leading-relaxed text-amber-300 min-h-[72px] mb-4 whitespace-pre-wrap">
+                    {verificationOutput}
+                  </pre>
+                )}
+              </div>
+
+              <div>
+                <button
+                  onClick={verifyContractIntegration}
+                  disabled={isVerifyingContracts}
+                  className={`w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${isVerifyingContracts ? 'bg-amber-950/40 text-amber-300 border border-amber-500/30 cursor-not-allowed' : launchProgress.step2 === 'completed' ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gradient-to-r from-amber-500 to-yellow-600 hover:scale-[1.01] active:scale-[0.99] text-white'}`}
+                >
+                  {isVerifyingContracts ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-amber-300 border-t-transparent rounded-full animate-spin"></span>
+                      Executing RPC Calls...
+                    </>
+                  ) : launchProgress.step2 === 'completed' ? (
+                    '✓ Re-Verify Contracts'
+                  ) : (
+                    'Verify Contract Integration 🛡️'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 3: Run Full E2E Tests */}
+            <div className={`p-5 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[420px] ${launchProgress.step3 === 'completed' ? 'border-emerald-500/35 bg-gradient-to-b from-[#0b241e] to-[#040a16] shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'border-cyan-500/30 bg-gradient-to-b from-[#10192a] to-[#040816] hover:border-cyan-500/60 shadow-lg'}`}>
+              <div className="absolute right-2 bottom-2 text-7xl opacity-[0.03] pointer-events-none">⚙️</div>
+              <div>
+                <div className="flex justify-between items-start pb-3 border-b border-white/5 mb-4">
+                  <div>
+                    <span className="text-[10px] text-cyan-400 font-mono font-bold uppercase tracking-wider">Phase 3 • Quality Assurance</span>
+                    <h3 className="font-serif text-sm font-bold text-white mt-0.5">Run Full E2E Tests</h3>
+                  </div>
+                  {launchProgress.step3 === 'completed' ? (
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 font-black tracking-wider">🟢 Passed</span>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-full border border-cyan-500/30 font-black tracking-wider animate-pulse">⚪ Pending</span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-white/70 leading-relaxed mb-4">
+                  Run simulated headless Playwright browser tests to certify core transactional flows: wallet logins, quest completions, badge claims, and block latency checks.
+                </p>
+
+                {/* Test Suite details list */}
+                <div className="space-y-1 p-2 bg-black/40 rounded-xl border border-white/5 text-[9px] text-white/50 mb-4 font-mono">
+                  <div>🧪 test_wallet_handshake.spec.js • <span className="text-emerald-400 font-bold">Passing</span></div>
+                  <div>🧪 test_claim_quest_flow.spec.js • <span className="text-emerald-400 font-bold">Passing</span></div>
+                  <div>🧪 test_mint_mee_token.spec.js • <span className="text-emerald-400 font-bold">Passing</span></div>
+                  <div>🧪 test_block_indexer_sync.spec.js • <span className="text-emerald-400 font-bold">Passing</span></div>
+                </div>
+
+                {/* Live E2E test stdout terminal */}
+                {e2eLogs.length > 0 && (
+                  <div className="h-28 overflow-y-auto bg-black/80 border border-white/5 rounded-lg p-2 font-mono text-[9px] leading-relaxed text-cyan-300">
+                    {e2eLogs.map((log, idx) => (
+                      <div key={idx} className="mb-0.5">{log}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <button
+                  onClick={executeE2eSuite}
+                  disabled={isTesting}
+                  className={`w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${isTesting ? 'bg-cyan-950/40 text-cyan-300 border border-cyan-500/30 cursor-not-allowed' : launchProgress.step3 === 'completed' ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gradient-to-r from-cyan-500 to-blue-600 hover:scale-[1.01] active:scale-[0.99] text-white'}`}
+                >
+                  {isTesting ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-cyan-300 border-t-transparent rounded-full animate-spin"></span>
+                      Executing E2E Suite...
+                    </>
+                  ) : launchProgress.step3 === 'completed' ? (
+                    '✓ Re-Execute Audits'
+                  ) : (
+                    'Execute E2E Test Suite ⚙️'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 4: Set Up Monitoring */}
+            <div className={`p-5 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[420px] ${launchProgress.step4 === 'completed' ? 'border-emerald-500/35 bg-gradient-to-b from-[#0b241e] to-[#040a16] shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'border-rose-500/30 bg-gradient-to-b from-[#1f101a] to-[#040816] hover:border-rose-500/60 shadow-lg'}`}>
+              <div className="absolute right-2 bottom-2 text-7xl opacity-[0.03] pointer-events-none">📊</div>
+              <div>
+                <div className="flex justify-between items-start pb-3 border-b border-white/5 mb-4">
+                  <div>
+                    <span className="text-[10px] text-rose-400 font-mono font-bold uppercase tracking-wider">Phase 4 • Consensus Telemetry</span>
+                    <h3 className="font-serif text-sm font-bold text-white mt-0.5">Set Up Monitoring</h3>
+                  </div>
+                  {launchProgress.step4 === 'completed' ? (
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 font-black tracking-wider">🟢 Monitoring Active</span>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-full border border-rose-500/30 font-black tracking-wider animate-pulse">⚪ Pending</span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-white/70 leading-relaxed mb-4">
+                  Link Prometheus metrics server with Grafana dashboard alerts to monitor network TPS capacity, latencies, and automatically fire alert triggers to Alertmanager.
+                </p>
+
+                {/* Simulated Monitor Board */}
+                <div className="p-3 bg-black/60 rounded-xl border border-white/5 space-y-2 mb-4 text-[10px]">
+                  <div className="flex justify-between items-center text-white/50">
+                    <span>Prometheus Node Status:</span>
+                    <span className={prometheusStatus.includes('Online') ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{prometheusStatus}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-white/50">
+                    <span>Grafana Alert Config:</span>
+                    <span className={grafanaAlerts.includes('Active') ? 'text-emerald-400 font-bold' : 'text-rose-400 font-bold'}>{grafanaAlerts}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-white/50">
+                    <span>Alertmanager Failover Routing:</span>
+                    <span>{alertmanagerFailover ? '🟢 Active & Bound' : '🔴 Unassigned'}</span>
+                  </div>
+
+                  {/* Tiny animated visual chart */}
+                  <div className="pt-2">
+                    <div className="text-[9px] text-white/30 font-mono mb-1">MeeChain TPS Pulse Rate:</div>
+                    <div className="h-6 flex items-end gap-1.5 bg-black/40 rounded border border-white/5 p-1 relative overflow-hidden">
+                      <span className="w-full bg-rose-500/40 rounded-sm h-[60%] animate-pulse"></span>
+                      <span className="w-full bg-rose-500/60 rounded-sm h-[40%] animate-pulse" style={{ animationDelay: '0.2s' }}></span>
+                      <span className="w-full bg-rose-500/80 rounded-sm h-[80%] animate-pulse" style={{ animationDelay: '0.4s' }}></span>
+                      <span className="w-full bg-rose-500 rounded-sm h-[90%] animate-pulse" style={{ animationDelay: '0.6s' }}></span>
+                      <span className="w-full bg-rose-500/50 rounded-sm h-[50%] animate-pulse" style={{ animationDelay: '0.1s' }}></span>
+                      <span className="w-full bg-rose-500/70 rounded-sm h-[75%] animate-pulse" style={{ animationDelay: '0.3s' }}></span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <button
+                  onClick={initializeMonitoringStack}
+                  className={`w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${launchProgress.step4 === 'completed' ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gradient-to-r from-rose-500 to-pink-600 hover:scale-[1.01] active:scale-[0.99] text-white'}`}
+                >
+                  {launchProgress.step4 === 'completed' ? '✓ Re-Initialize Telemetry' : 'Set Up Monitoring Stack 📊'}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 5: Launch to Production */}
+            <div className={`p-5 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[420px] ${launchProgress.step5 === 'completed' ? 'border-emerald-500/35 bg-gradient-to-b from-[#0b241e] to-[#040a16] shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'border-emerald-500/30 bg-gradient-to-b from-[#0e2118] to-[#040816] hover:border-emerald-500/60 shadow-lg'}`}>
+              <div className="absolute right-2 bottom-2 text-7xl opacity-[0.03] pointer-events-none">🚀</div>
+              <div>
+                <div className="flex justify-between items-start pb-3 border-b border-white/5 mb-4">
+                  <div>
+                    <span className="text-[10px] text-emerald-400 font-mono font-bold uppercase tracking-wider">Phase 5 • Production Release</span>
+                    <h3 className="font-serif text-sm font-bold text-white mt-0.5">Launch to Production</h3>
+                  </div>
+                  {launchProgress.step5 === 'completed' ? (
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 font-black tracking-wider">🟢 App Live</span>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 font-black tracking-wider animate-pulse">⚪ Pending</span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-white/70 leading-relaxed mb-4">
+                  Deploy built production-ready dashboard client bundle assets to Vercel global edge servers, bound to MeeChain's official custom domain.
+                </p>
+
+                {/* Vercel production parameters */}
+                <div className="space-y-2 mb-4 text-[10px]">
+                  <div>
+                    <span className="text-white/40 block mb-0.5">Target Vercel Project ID:</span>
+                    <span className="font-mono text-white/80 bg-black/40 px-2.5 py-1 rounded border border-white/5 block font-bold text-[9px] tracking-wide select-all">{vercelProjectId}</span>
+                  </div>
+                  <div>
+                    <span className="text-white/40 block mb-0.5">Bound Custom Domain:</span>
+                    <span className="font-mono text-cyan-400 bg-black/40 px-2.5 py-1 rounded border border-white/5 block font-bold text-[9px] tracking-wide select-all">{customDomain}</span>
+                  </div>
+                </div>
+
+                {/* Vercel build logs */}
+                {deployLogs.length > 0 && (
+                  <div className="h-24 overflow-y-auto bg-black/80 border border-white/5 rounded-lg p-2 font-mono text-[9px] leading-relaxed text-[#20c20e]">
+                    {deployLogs.map((log, idx) => (
+                      <div key={idx} className="mb-0.5">{log}</div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <button
+                  onClick={deployLiveToProduction}
+                  disabled={isDeployingVercel}
+                  className={`w-full py-2.5 rounded-xl text-[11px] font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${isDeployingVercel ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-500/30 cursor-not-allowed' : launchProgress.step5 === 'completed' ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gradient-to-r from-emerald-500 to-[#12a150] hover:scale-[1.01] active:scale-[0.99] text-white shadow-[0_4px_15px_rgba(16,185,129,0.25)]'}`}
+                >
+                  {isDeployingVercel ? (
+                    <>
+                      <span className="w-3 h-3 border-2 border-emerald-300 border-t-transparent rounded-full animate-spin"></span>
+                      Deploying to Vercel...
+                    </>
+                  ) : launchProgress.step5 === 'completed' ? (
+                    '✓ Redeploy Live Version'
+                  ) : (
+                    'Publish to Production 🚀'
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* Step 6: Celebrate with Users */}
+            <div className={`p-5 rounded-2xl border-2 transition-all duration-300 relative overflow-hidden flex flex-col justify-between min-h-[420px] ${launchProgress.step6 === 'completed' ? 'border-emerald-500/35 bg-gradient-to-b from-[#0b241e] to-[#040a16] shadow-[0_0_20px_rgba(16,185,129,0.15)]' : 'border-yellow-500/30 bg-gradient-to-b from-[#211b0e] to-[#040816] hover:border-yellow-500/60 shadow-lg'}`}>
+              <div className="absolute right-2 bottom-2 text-7xl opacity-[0.03] pointer-events-none">🎊</div>
+              <div>
+                <div className="flex justify-between items-start pb-3 border-b border-white/5 mb-4">
+                  <div>
+                    <span className="text-[10px] text-[#ffd700] font-mono font-bold uppercase tracking-wider">Phase 6 • Ecosystem Reward</span>
+                    <h3 className="font-serif text-sm font-bold text-white mt-0.5">Celebrate with Users</h3>
+                  </div>
+                  {launchProgress.step6 === 'completed' ? (
+                    <span className="text-[9px] font-mono uppercase bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/30 font-black tracking-wider">🟢 Hall Active</span>
+                  ) : (
+                    <span className="text-[9px] font-mono uppercase bg-yellow-500/20 text-[#f7c55f] px-2 py-0.5 rounded-full border border-yellow-500/30 font-black tracking-wider animate-pulse">⚪ Celebration Locked</span>
+                  )}
+                </div>
+
+                <p className="text-[11px] text-white/70 leading-relaxed mb-4">
+                  Open the gates of Academy Hall for prospective guardians, launch genesis community XP drops, and authorize full Magic Hall operations!
+                </p>
+
+                {/* Celebration Details list */}
+                <div className="space-y-1.5 p-3 bg-black/40 rounded-xl border border-white/5 text-[10px] text-white/60 mb-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-yellow-400 font-bold">🎁</span>
+                    <span>Air-Drop Amount: <strong className="text-white">{airdropAmount} MEE</strong></span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-purple-400 font-bold">🌟</span>
+                    <span>Open Academy & Guardian Halls for registration</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-cyan-400 font-bold">🪄</span>
+                    <span>Direct player bonus: <strong className="text-[#f7c55f]">+1000 XP</strong></span>
+                  </div>
+                </div>
+
+                {/* Coin Reward Box Visual */}
+                <div className="bg-black/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2 font-bold text-white">
+                    <span className="text-xl">🏆</span>
+                    <div>
+                      <div className="text-[10px] text-white/80">Launch Achievement Reward</div>
+                      <div className="text-[9px] text-[#ffd700] font-mono leading-none">+1000 XP (Triggers character Level Up)</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <button
+                  onClick={triggerGenesisCelebration}
+                  disabled={isAirdropping}
+                  className={`w-full py-3 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${isAirdropping ? 'bg-yellow-950/40 text-yellow-300 border border-yellow-500/30 cursor-not-allowed' : launchProgress.step6 === 'completed' ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-gradient-to-r from-yellow-500 via-amber-500 to-[#ffaa00] hover:scale-[1.01] active:scale-[0.99] text-black shadow-[0_4px_15px_rgba(245,158,11,0.25)] animate-pulse'}`}
+                >
+                  {isAirdropping ? (
+                    <>
+                      <span className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin"></span>
+                      Distributing XP & Badges...
+                    </>
+                  ) : launchProgress.step6 === 'completed' ? (
+                    '✓ Airdrop Complete!'
+                  ) : (
+                    'Launch Genesis Community Airdrop 🎊'
+                  )}
+                </button>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

@@ -8,6 +8,7 @@ import QuestHall from './components/halls/QuestHall';
 import CouncilHall from './components/halls/CouncilHall';
 import AcademyHall from './components/halls/AcademyHall';
 import MeeBotGuide from './components/halls/MeeBotGuide';
+import RitualHall from './components/halls/RitualHall';
 import { api, toMetricValue, blockchainEvents } from './lib/api';
 
 const HALLS = [
@@ -16,6 +17,7 @@ const HALLS = [
   { id: 'guardian', label: '🛡 Guardian' },
   { id: 'archive', label: '📜 Archive' },
   { id: 'quest', label: '🎮 Quest' },
+  { id: 'ritual', label: '🪄 Ritual' },
   { id: 'council', label: '🏛 Council' },
   { id: 'academy', label: '🌟 Academy' },
   { id: 'meebot', label: '🤖 MeeBot' }
@@ -262,6 +264,7 @@ export default function App() {
     guardian: <GuardianHall {...hallProps} />,
     archive: <ArchiveHall {...hallProps} />,
     quest: <QuestHall {...hallProps} />,
+    ritual: <RitualHall {...hallProps} messages={messages} onSend={handleMeeBotSend} busy={meebotBusy} />,
     council: <CouncilHall {...hallProps} />,
     academy: <AcademyHall {...hallProps} />,
     meebot: <MeeBotGuide {...hallProps} messages={messages} onSend={handleMeeBotSend} busy={meebotBusy} />
